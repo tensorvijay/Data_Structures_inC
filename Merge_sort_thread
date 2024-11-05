@@ -1,0 +1,111 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <pthread.h>
+
+#define MAX 10000  // Maximum array size
+#define THREAD_MAX 4  // Maximum number of threads
+
+// Array to be sorted
+int arr[MAX];
+int part = 0;
+
+// Function to merge two halves
+void merge(int low, int mid, int high) {
+    int n1 = mid - low + 1;
+    int n2 = high - mid;
+    int left[n1], right[n2];
+
+    for (int i = 0; i < n1; i++)
+        left[i] = arr[low + i];
+    for (int i = 0; i < n2; i++)
+        right[i] = arr[mid + 1 + i];
+
+    int i = 0, j = 0, k = low;
+
+    while (i < n1 && j < n2) {
+        if (left[i] <= right[j]) {
+            arr[k++] = left[i++];
+        } else {
+            arr[k++] = right[j++];
+        }
+    }
+
+    while (i < n1) {
+        arr[k++] = left[i++];
+    }
+    while (j < n2) {
+        arr[k++] = right[j++];
+    }
+}
+
+// Function to perform merge sort
+void merge_sort(int low, int high) {
+    if (low < high) {
+        int mid = low + (high - low) / 2;
+
+        merge_sort(low, mid);
+        merge_sort(mid + 1, high);
+
+        merge(low, mid, high);
+    }
+}
+
+// Thread function to perform merge sort on a part of the array
+void *threaded_merge_sort(void *arg) {
+    int thread_part = part++;
+
+    int low = thread_part * (MAX / THREAD_MAX);
+    int high = (thread_part + 1) * (MAX / THREAD_MAX) - 1;
+
+    int mid = low + (high - low) / 2;
+    if (low < high) {
+        merge_sort(low, mid);
+        merge_sort(mid + 1, high);
+        merge(low, mid, high);
+    }
+
+    return NULL;
+}
+
+int main() {
+    // Generate random values for the array
+    for (int i = 0; i < MAX; i++) {
+        arr[i] = rand() % 100;
+    }
+
+    // Print the unsorted array
+    printf("Unsorted array:\n");
+    for (int i = 0; i < MAX; i++) {
+        printf("%d ", arr[i]);
+    }
+    printf("\n");
+
+    // Create threads
+    pthread_t threads[THREAD_MAX];
+    for (int i = 0; i < THREAD_MAX; i++) {
+        pthread_create(&threads[i], NULL, threaded_merge_sort, (void*)NULL);
+    }
+
+    // Wait for all threads to complete
+    for (int i = 0; i < THREAD_MAX; i++) {
+        pthread_join(threads[i], NULL);
+    }
+
+    // Merge final parts
+    for (int i = 1; i < THREAD_MAX; i++) {
+        int low = 0;
+        int high = (i + 1) * (MAX / THREAD_MAX) - 1;
+        int mid = high - (MAX / THREAD_MAX);
+
+        merge(low, mid, high);
+    }
+
+    // Print the sorted array
+    printf("Sorted array:\n");
+    for (int i = 0; i < MAX; i++) {
+        printf("%d ", arr[i]);
+    }
+    printf("\n");
+
+    return 0;
+}
